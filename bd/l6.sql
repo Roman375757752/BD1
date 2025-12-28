@@ -15,14 +15,13 @@ where student.idcommand = project.idcommand and projectname like 'Э%' and start
 
 --Перечислите студентов, которые в команде под руководством Телиной Ирины Сергеевны.
 
--- для начала ее доавим 
+--добавим пока ее
 insert into mentor (lastname, firstname, email, idcommand) 
 values ('Телина', 'Ирина', 'telina@mail.ru', 1);
 
 
 select student.lastname, student.firstname from student, command, mentor
-where student.idcommand = command.id and command.id = mentor.idcommand and mentor.lastname = 'Телина' and mentor.firstname = 'Ирина'
-and mentor.firstname like '%Сергеевна%';
+where student.idcommand = command.id and command.id = mentor.idcommand and mentor.lastname = 'Телина' and mentor.firstname = 'Ирина';
 
 --Агрегатные функции в многотабличных запросах
 --Подсчитайте среднюю стоимость и количество выполняемых ей проектов каждой команды.
@@ -68,21 +67,17 @@ where student.id is null;
 
 --Выведите название команд, которые выполняют проекты, стоимость которых >10000 и <20000 (оператор UNION ALL и UNION). Результаты сравните.
 -- С UNION ALL (с дубликатами)
-select distinct command.command
-from command, project
+select distinct command.command from command, project
 where command.id = project.idcommand and project.price > 10000
 union all
-select distinct command.command
-from command, project
+select distinct command.command from command, project
 where command.id = project.idcommand and project.price < 20000;
 
 -- С UNION (без дубликатов)
-select distinct command.command
-from command, project
+select distinct command.command from command, project
 where command.id = project.idcommand and project.price > 10000
 union
-select distinct command.command
-from command, project
+select distinct command.command from command, project
 where command.id = project.idcommand and project.price < 20000;
 
 
@@ -92,14 +87,11 @@ insert into mentor (lastname, firstname, email, idcommand)
 values ('Цымбалюк', 'Лариса', 'tsymbalyuk@mail.ru', 1);
 
 -- Теперь INTERSECT
-select project.*
-from project, command, mentor
+select project.id, project.projectname, project.price from project, command, mentor
 where project.idcommand = command.id and command.id = mentor.idcommand and project.price > 1000
 intersect
-select project.*
-from project, command, mentor
+select project.id, project.projectname, project.price from project, command, mentor
 where project.idcommand = command.id and command.id = mentor.idcommand and mentor.lastname = 'Цымбалюк' and mentor.firstname = 'Лариса';
-
 
 --Придумайте и реализуйте пример разности.
 -- Проекты дороже 50000, но НЕ те, что выполняет команда с id=1
@@ -116,7 +108,7 @@ select * from project
 where price > (select avg(price) from project where price is not null);
 
 
---Найдите фамилии и имена тех студентов, которые работают в команде A&B
+--Найдите фамилии и имена тех студентов, которые работают в команде A
 select lastname, firstname from student
 where idcommand = (select id from command where command = 'Команда А');
 
@@ -127,9 +119,10 @@ select * from project
 where price = (select price from project where id = 1) and id != 1;
 
 
---(HAVING): Выведите количество проектов каждой команды, у которых фамилия руководителя содержит букву а.
+--(HAVING): Выведите количество проектов каждой команды, у которых фамилия руководителя содержит букву а.\
+--оставл только итк комманд  , где хотя бы есть хоть 1 проект 
 select command.command, count(project.id) as количество_проектов from command, project, mentor
-where command.id = project.idcommand and command.id = mentor.idcommand and mentor.lastname like '%а%'
+where command.id = project.idcommand and command.id = mentor.idcommand and mentor.lastname  like '%а%'
 group by command.id, command.command
 having count(project.id) > 0;
 
@@ -153,13 +146,13 @@ where id = any (select distinct idcommand from project where idcommand is not nu
 
 
 --*SOME: Напишите запрос для вывода списка студентов, год рождения которых больше года рождения студентов из команды A&B
--- (SOME работает так же как ANY, берем существующую команду)
 select lastname, firstname from student
 where yearb > some (select yearb from student where idcommand = 1);
 
 
 --ALL. Найти проекты, стоимость которых больше, чем самый дорогой проект указанного типа.
 -- Например, больше чем самый дорогой социальный проект
+--подзапрос выводит цены соц. проектов
 select * from project
 where price > all (select price from project where project_type = 'социальный' and price is not null);
 
@@ -167,23 +160,24 @@ where price > all (select price from project where project_type = 'социал�
 --Подзапросы с EXISTS, NOT EXISTS
 
 --Напишите подзапрос для вывода фамилий студентов из команд, которые реализуют проекты более одного типа.
-select lastname, firstname from student s
-where exists ( select 1 from project p where p.idcommand = s.idcommand
-    group by p.idcommand
-    having count(distinct p.project_type) > 1
+select lastname, firstname from student
+where exists (select 1 from project where project.idcommand = student.idcommand group by project.idcommand having count(distinct project.project_type) > 1
 );
 
 
 --* Напишите запрос для вывода название команд, которые реализуют проекты каждого типа.
--- (сложно, так как нужно проверить все 3 типа)
-select command from command c
-where exists (select 1 from project where idcommand = c.id and project_type = 'социальный') and exists (select 1 from project where idcommand = c.id and project_type = 'информационный') and exists (select 1 from project where idcommand = c.id and project_type = 'исследовательский');
-
+select command from command
+where exists (select 1 from project where project.idcommand = command.id and project.project_type = 'социальный'
+) 
+and exists (select 1 from project where project.idcommand = command.id and project.project_type = 'информационный'
+)
+and exists (select 1 from project where project.idcommand = command.id and project.project_type = 'исследовательский'
+);
 
 --Перечислите команды, которые не имеют ни одного проекта с указанным статусом.
 -- Например, статус 'завершен'
-select command from command c
-where not exists ( select 1 from project where idcommand = c.id and status = 'завершен'
+select command from command
+where not exists (select 1 from project where project.idcommand = command.id and project.status = 'завершен'
 );
 
 
@@ -323,4 +317,5 @@ where t.score >= 3  -- выполненные задачи
   and s.groupname is not null
 group by s.groupname
 order by s.groupname;
+
 
