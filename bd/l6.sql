@@ -203,19 +203,14 @@ select current_date + generate_series(0, 30) as дата;
 -- 4.8.5. Построение рекурсивного запроса к набору данных
 
 -- Создайте таблицу events, содержащую поля id, predid, postid, descr.
-create table events (
-    id bigint primary key,
-    predid bigint,
-    postid bigint,
-    descr text
-);
+create table events (id bigint primary key, predid bigint, postid bigint, descr text);
 
 -- Напишите запрос на выборку к generate_series(1,10) AS id с полями id*10, (id-1)*10, (id+1)*10, 'Event ' || id*10
 select 
-    id * 10 as id,
-    (id - 1) * 10 as predid,
-    (id + 1) * 10 as postid,
-    'Event ' || (id * 10) as descr
+    id * 10 as зад1,
+    (id - 1) * 10 as зад2,
+    (id + 1) * 10 as зад3,
+    'Event ' || (id * 10) as зад4
 from generate_series(1, 10) as id;
 
 -- Напишите запрос на вставку 10 записей в таблицу events, как результат предыдущего запроса
@@ -228,14 +223,16 @@ select
 from generate_series(1, 10) as id;
 
 -- Напишите рекурсивный запрос, который найдёт id события от события с id=10
+-- Рекурсивно находим всю цепочку событий, начиная с id=10
+-- Каждое следующее событие имеет predid = id предыдущего
 with recursive event_chain as (
     select id, predid, postid, descr
     from events
-    where id = 10  -- начинаем с события id=10
+    where id = 10  
     union all
-    select e.id, e.predid, e.postid, e.descr
-    from events e
-    join event_chain ec on e.id = ec.predid  -- идем по цепочке predid
+    select events.id, events.predid, events.postid, events.descr
+    from events 
+    join event_chain on events.predid = event_chain.id
 )
 select * from event_chain;
 
@@ -247,10 +244,10 @@ select * from event_chain;
 alter table student add column уровень integer;
 
 -- Заполняем случайными значениями от 0 до 2
-update student set уровень = floor(random() * 3)::integer;
+update student set уровень = ceil(random() * 2);
 
 -- Находим подчиненных указанного пользователя (например, пользователя с id=1 и уровнем 0)
--- Предположим, что подчиненные имеют уровень > уровня руководителя
+-- подчиненные имеют уровень > уровня руководителя
 select s2.*
 from student s1
 join student s2 on s1.idcommand = s2.idcommand  -- в одной команде
@@ -308,14 +305,15 @@ update task set student_id = 5 where id = 6;
 --По каждой группе найдите количество выполненных задач
 -- (предположим, что выполненные задачи - это задачи со score >= 3)
 
-select 
-    s.groupname,
-    count(t.id) as количество_выполненных_задач
-from student s
-left join task t on s.id = t.student_id
-where t.score >= 3  -- выполненные задачи
-  and s.groupname is not null
-group by s.groupname
-order by s.groupname;
+SELECT 
+    student.groupname,
+    COUNT(task.id) AS количество_выполненных_задач
+FROM student
+LEFT JOIN task ON student.id = task.student_id
+WHERE task.score >= 3  -- выполненные задачи
+  AND student.groupname IS NOT NULL
+GROUP BY student.groupname
+ORDER BY student.groupname;
+
 
 
